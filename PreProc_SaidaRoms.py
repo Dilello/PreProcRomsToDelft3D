@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
  
 
-mat = loadmat('Documents\\Projetos\\RedeRioDoce\\MODELO\\ROMS\\Contornos_ROMS_e_Delft\\componenteU_Jan_2018.mat')
+mat = loadmat('Documents\\Projetos\\RedeRioDoce\\MODELO\\ROMS\\Contornos_ROMS_e_Delft\\Salt_Jan_2018.mat')
 posicao = np.loadtxt('Documents\\Projetos\\RedeRioDoce\\MODELO\\ROMS\\teste_v4.txt')
 mdata = mat['uu']
 index = pd.MultiIndex.from_product([range(s)for s in mdata.shape])
