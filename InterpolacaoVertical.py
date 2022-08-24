@@ -1,4 +1,4 @@
-#-------------------Importando Bibliotecas ---------------------------------
+#-------------------Importando Bibliotecas ---------------------------------------------------------
 
 import numpy as np
 from scipy.io import loadmat
@@ -10,9 +10,9 @@ from scipy.interpolate import griddata
 import warnings
 warnings.filterwarnings('ignore')
 
-#-------------------FIM da importação --------------------------------------
+#-------------------FIM da importação --------------------------------------------------------------
 
-#----------------- INÍCIO função listaVar() ----------------------------
+#----------------- INÍCIO função listaVar() --------------------------------------------------------
 
 def listaVar():
     ano1 = ['2018','2019','2020','2021','2022','2023']
@@ -45,9 +45,9 @@ def listaVar():
 
     return listaVariaveis
 
-#----------------- INÍCIO fanção listaVar() ----------------------------
+#----------------- FIM função listaVar() -----------------------------------------------------------
 
-#----------------- INÍCIO função openROMS-----------------------------------
+#----------------- INÍCIO função openROMS ----------------------------------------------------------
 def openROMS(caminhoROMS, arquivo, listas):
 
     print('***Entrada dos parâmetros dos pontos do ROMS na fronteira***\n')
@@ -80,9 +80,9 @@ def openROMS(caminhoROMS, arquivo, listas):
 
     return RomsBruto
 
-#------------------FIM da função openROMS----------------------------------
+#------------------FIM da função openROMS-----------------------------------------------------------
 
-#-----------------
+#-----------------INÍCIO da função InterpVertical --------------------------------------------------
 def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, arquivoLatLong, caminhoSaida1):
 
     delftprof = np.loadtxt(caminhoCamadas)
@@ -97,9 +97,6 @@ def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, arquivoL
         for j in range(0,len(FrontCC1)):
             x0 = np.array(roms_bat_roms[j])
             y0 =  np.array(roms_salt_roms[j])
-            #delftprof = np.array([1,0.95,0.90,0.80,0.70,0.50,0.30,0.20,0.10,0.05])
-            #delftprof = np.array([1, 0.975, 0.95, 0.9, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15, 0.1, 0.05, 0.025])
-            #delftprof = np.array([1, 0.975, 0.95, 0.925, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.075, 0.05, 0.025])
             minimo = min(roms_bat_roms[j])
             entradaprof = delftprof*minimo
             f1 = interpolate.interp1d(x0, y0,kind='linear',fill_value = 'extrapolate')
@@ -128,9 +125,9 @@ def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, arquivoL
     df_Interpolado1['Lat'] = LongLatRoms[:,2]
     df_Interpolado1.to_csv(caminhoSaida1+arquivoMat+'_'+str(len(delftprof))+'.csv')
     return df_Interpolado1
+#----------------- FIM da função InterpVertical ----------------------------------------------------
 
-
-#----------------INÍCIO DO CÓDIGO PRINCIPAL----------------------------------
+#----------------INÍCIO DO CÓDIGO PRINCIPAL---------------------------------------------------------
 print('+ ================================================================================== +')
 print('|                                                                                    |')
 print('| Título: Interpolação das camadas dos dados do ROMS para as camadas do DELFT3D-4    |')
@@ -141,12 +138,15 @@ print('| Contato: dilellocn@gmail.com                                           
 print('|                                                                                    |')
 print('+ ================================================================================== +\n\n')
 
+print('IMPORTANTE: Antes de começar crie um arquivo .TXT com as proporções das camadas de interesse.\n')
+print('Exemplo de 10 camadas: 1.0  0.95  0.90  0.80  0.70  0.50  0.30  0.20  0.10  0.05\n')
+
 roms_input = pd.DataFrame()
 prof_input = pd.DataFrame()
 delft_input = pd.DataFrame()
 resultado = pd.DataFrame()
 caminhoROMS = str(input('\n Digitar o caminho que leva ao arquivos .MAT do ROMS:\n>> '))
-arquivoLatLong = input('\n Digitar nome arquivo com a extensão .TXT com a lat e long dos pontos do ROMS:\n>> ')
+arquivoLatLong = input('\n Digitar nome arquivo com a extensão .TXT referente a lat e long dos pontos do ROMS:\n>> ')
 mes = input('\n Entrar com o mês de interesse [Jan, Fev, Mar, Abr, Mai, Jun, Jul, Ago, Set, Out, Nov, Dez]:\n>> ')
 ano = int(input('\n Entrar com o ano de interesse (Ex.: 2022):\n>> '))
 arquivoprof = 'profundidade'+'_'+mes+'_'+str(ano)
@@ -175,4 +175,4 @@ while True:
         continue
 print('Programa finalizado!')
 
-#----------------FIM DO CÓDIGO PRINCIPAL-------------------------------------------- 
+#----------------FIM DO CÓDIGO PRINCIPAL------------------------------------------------------------ 
