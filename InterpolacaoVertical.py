@@ -83,7 +83,7 @@ def openROMS(caminhoROMS, arquivo, listas):
 #------------------FIM da função openROMS-----------------------------------------------------------
 
 #-----------------INÍCIO da função InterpVertical --------------------------------------------------
-def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, arquivoLatLong, caminhoSaida1):
+def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, caminhoSaida1):
 
     delftprof = np.loadtxt(caminhoCamadas)
     dadoSaida = []
@@ -120,9 +120,6 @@ def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, arquivoL
     df_Interpolado.columns.names = ['Dia','Ponto']
     df1 = df_Interpolado.stack(level=[0,1])
     df_Interpolado1 = df1.unstack(level=[0,1])
-    LongLatRoms = np.loadtxt(caminhoROMS+arquivoLatLong)
-    df_Interpolado1['Long'] = LongLatRoms[:,1]
-    df_Interpolado1['Lat'] = LongLatRoms[:,2]
     df_Interpolado1.to_csv(caminhoSaida1+arquivoMat+'_'+str(len(delftprof))+'.csv')
     return df_Interpolado1
 #----------------- FIM da função InterpVertical ----------------------------------------------------
@@ -146,7 +143,6 @@ prof_input = pd.DataFrame()
 delft_input = pd.DataFrame()
 resultado = pd.DataFrame()
 caminhoROMS = str(input('\n Digitar o caminho que leva ao arquivos .MAT do ROMS:\n>> '))
-arquivoLatLong = input('\n Digitar nome arquivo com a extensão .TXT referente a lat e long dos pontos do ROMS:\n>> ')
 mes = input('\n Entrar com o mês de interesse [Jan, Fev, Mar, Abr, Mai, Jun, Jul, Ago, Set, Out, Nov, Dez]:\n>> ')
 ano = int(input('\n Entrar com o ano de interesse (Ex.: 2022):\n>> '))
 arquivoprof = 'profundidade'+'_'+mes+'_'+str(ano)
@@ -162,7 +158,7 @@ while True:
             prof_input = openROMS(caminhoROMS, arquivo, listas)
             arquivo = arquivoMat
             roms_input = openROMS(caminhoROMS, arquivo, listas)
-            resultado = InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, arquivoLatLong, caminhoSaida1)
+            resultado = InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, caminhoSaida1)
             print ('Arquivos gerados com sucesso!')
             continue
         elif opcao == 2:
