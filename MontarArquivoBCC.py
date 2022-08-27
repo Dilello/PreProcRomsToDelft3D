@@ -216,7 +216,7 @@ print('+ =======================================================================
 
 while True:
     try:
-        opcao = int(input('Escolha a poção desejada [1 ou 2]:\n1 - Executar código de seleção de pontos do ROMS\n2 - Sair\n>>'))
+        opcao = int(input('Escolha a poção desejada [1 ou 2]:\n1 - Executar código montagem do arquivo BCC\n2 - Sair\n>>'))
         if opcao == 1:
             referenceTime = int(input('\n Entrar com a data [AAAAMMDD] de referência inicial do modelo (Ex.:20110101):\n>> '))
             entradaTime = int(input('\n Entrar com a data [AAAAMM] do arquivo que será incorporado na série acumulada  (Ex.:201101):\n>> '))
