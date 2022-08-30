@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 
 def listaVar():
     ano1 = ['2018','2019','2020','2021','2022','2023']
-    mes1 = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+    mes1 = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
 
     listaComU = []
     listaComV = []
@@ -97,8 +97,9 @@ def InterpVertical(prof_input, roms_input, caminhoCamadas , arquivoMat, caminhoS
         for j in range(0,len(FrontCC1)):
             x0 = np.array(roms_bat_roms[j])
             y0 =  np.array(roms_salt_roms[j])
+            espessuraCamada = x0[0]-x0[1]
             minimo = min(roms_bat_roms[j])
-            entradaprof = delftprof*minimo
+            entradaprof = delftprof*(minimo+(espessuraCamada/2.))
             f1 = interpolate.interp1d(x0, y0,kind='linear',fill_value = 'extrapolate')
             #f2 = interpolate.interp1d(x0, y0,kind='cubic')
             #f3 = interpolate.interp1d(x0, y0,kind='quadratic')
@@ -143,7 +144,7 @@ prof_input = pd.DataFrame()
 delft_input = pd.DataFrame()
 resultado = pd.DataFrame()
 caminhoROMS = str(input('\n Digitar o caminho que leva ao arquivos .MAT do ROMS:\n>> '))
-mes = input('\n Entrar com o mês de interesse [Jan, Fev, Mar, Abr, Mai, Jun, Jul, Ago, Set, Out, Nov, Dez]:\n>> ')
+mes = input('\n Entrar com o mês de interesse [jan, fev, mar, abr, mai, jun, jul, ago, set, out, nov, dez]:\n>> ')
 ano = int(input('\n Entrar com o ano de interesse (Ex.: 2022):\n>> '))
 arquivoprof = 'profundidade'+'_'+mes+'_'+str(ano)
 while True:
