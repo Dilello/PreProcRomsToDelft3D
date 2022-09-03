@@ -1,16 +1,12 @@
-## -------------------Importando Bibliotecas ---------------------------------------------------------
-
+# -------------------Importando Bibliotecas ---------------------------------------------------------
 import numpy as np
-from scipy.io import loadmat
 import pandas as pd
-import math
 import glob
 import warnings
 warnings.filterwarnings('ignore')
+#---------------------------------------------------------------------------------------------------
 
-#-------------------FIM da importação --------------------------------------------------------------
-
-#-----------------INÍCIO fronteiraDelft ------------------------------------------------------------
+#-----------------INÍCIO fronteiraDelft()-----------------------------------------------------------
 
 def fronteiraDelft():
     fronteira  = []
@@ -35,13 +31,12 @@ def fronteiraDelft():
 #-----------------FIM fronteiraDelft()--------------------------------------------------------------
 
 #-----------------INÍCIO função openCSV-------------------------------------------------------------
-
 def openCSV(caminho, fronteira, fronteira1, ent_header):
 
     j = 0
     for i in glob.glob(caminho+'*.csv', recursive = True):
         j += 1
-        globals()["dado" + str(j)] = pd.read_csv(i,sep = ';',header = ent_header, index_col = 0)
+        globals()["dado" + str(j)] = pd.read_csv(i,header = ent_header, index_col = 0)
 
     while True:
         try:
@@ -67,120 +62,174 @@ def openCSV(caminho, fronteira, fronteira1, ent_header):
     return ArqSaida
 #----------------FIM da função openCSV -------------------------------------------------------------
 
-#----------------INÍCIO função distEuclediana-------------------------------------------------------
+#------------------------- INÍCIO da funcao estruturandoNovaEntrada --------------------------------
+def estruturandoNovaEntrada(caminho,fronteira,fronteira1):
+    ent_header = [0,1]
+    DadoInicialS1 = openCSV(caminho, fronteira, fronteira1, ent_header)
+    print("****entrada de arquivo novo***")
+    ndias = len(DadoInicialS1.loc[:,DadoInicialS1.columns.get_level_values(0).isin(['1'])].columns)
+    ncamadas = len(DadoInicialS1.loc[:,DadoInicialS1.columns.get_level_values(1).isin(['1'])].columns)
+    nlinhas = np.arange(1, len(DadoInicialS1)+1,1)
+    Ind1 = [fronteira1 + '{}'.format(x) for x in nlinhas]
+    a = np.arange(1,ndias+1,1)
+    A1 = np.concatenate([([i]*len(a)) for i in range(1,ncamadas+1)], axis=0)
+    A1 = ["%02d" % n for n in A1]
 
-def distEuclediana (Ind, pontos1, pontos2, fronteira1):
-    dist = []
-    listaLat1 = []
-    listaLong1 = []
-    listaLong2 = []
-    listaLat2 = []
-    listatrecho = []
+    #IMPORTANTE: Como no ROMS a 1ª camada é o fundo e no Delft é o contrário, aqui acontece a inversão das camadas:
+    A1 = A1[::-1]
+    
+    B1 = list(np.arange(1,len(a)+1))*ncamadas
+    B1 = ["%05d" % n for n in B1]
+    df_entrada1 = pd.DataFrame(np.array(DadoInicialS1), columns=pd.MultiIndex.from_tuples(zip(A1,B1)))
+    df_entrada1.index = Ind1
+    df_entrada1s = df_entrada1.stack(level=[0,1])
+    df_entrada1u = df_entrada1s.unstack(level=[0,1])
+    return df_entrada1u
+#----------------------- FIM da funcao estruturandoNovaEntrada -------------------------------------
 
-    for j in range(len(pontos2)):
-        for i in range(len(pontos1)):
-            xa = pontos1[i][0]
-            xb = pontos2[j][0]
-            ya = pontos1[i][1]
-            yb = pontos2[j][1]
-            Ind1 = Ind[j]
-            # Formula da distancia Euclediana
-            distance = math.sqrt(((xa-xb)**2) + ((ya-yb)**2))
-            dist.append(distance)
-            listaLong1.append(xa)
-            listaLong2.append(xb)
-            listaLat1.append(ya)
-            listaLat2.append(yb)
-            listatrecho.append(Ind1)
+#----------------------- INÍCIO da funcao criarArquivoBCC ------------------------------------------
+def criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, caminhoSaida1, caminhoSaida2, caminhoSaida3):
+    my_file = open(caminhoSaida3+'BCC_'+str(entradaTime)+'.txt', "w")
+    for u in range(len(fronteira)):
+        fronteira1 = fronteira[u]
+        caminho = caminhoS
+        df_NovaEntradaS = estruturandoNovaEntrada(caminho,fronteira,fronteira1)
+        caminho = caminhoT
+        df_NovaEntradaT = estruturandoNovaEntrada(caminho,fronteira,fronteira1)
+        while True:
+            try:
+                perguntaInicial = int(input('Selecione a opção desejada:\n1 - Arquivo novo\n2 - Incremento de dados para um arquivo .BCC pré-existente\n>>'))
+                if perguntaInicial == 1:
+                    df_SerieCompletaS = df_NovaEntradaS
+                    df_SerieCompletaT = df_NovaEntradaT
+                    df_TimeStep = pd.DataFrame()
+                    TimeStep = []
+                    for i in range(len(df_SerieCompletaS)):
+                        x1 = i*1440
+                        TimeStep.append(x1)
 
-    distance_list = pd.DataFrame(
-        {'dist': dist,
-         'Long1': listaLong1,
-         'Lat1': listaLat1,
-         'Long2': listaLong2,
-         'Lat2':listaLat2
-        })
+                    df_TimeStep['Step'] = TimeStep
+                    df_SerieCompletaS.to_csv(caminhoSaida1+fronteira1+'_Salt_'+str(entradaTime)+'.csv')
+                    df_SerieCompletaT.to_csv(caminhoSaida2+fronteira1+'_Temp_'+str(entradaTime)+'.csv')
+                    print("*** Série histórica da fronteira "+ fronteira1+" nova criada com sucesso!***")
+                    break
+                elif perguntaInicial == 2:
+                    ent_header = [0,1]
+                    caminhoBCCs = str(input('\n Digitar o caminho que leva aos arquivos de SALINIDADE .CSV com a série temporal acumulada:\n>> '))
+                    caminho = caminhoBCCs
+                    df_DadoBCCs = openCSV(caminho, fronteira, fronteira1, ent_header)
+                    caminhoBCCt = str(input('\n Digitar o caminho que leva aos arquivos de TEMPERATURA .CSV com a série temporal acumulada:\n>> '))
+                    caminho = caminhoBCCt
+                    df_DadoBCCt = openCSV(caminho, fronteira, fronteira1, ent_header)
+                    ndias_novaentrada = len(df_NovaEntradaS)
+                    ndias_DadoBCC = len(df_DadoBCCs)
+                    Newdias = list(np.arange(1, ndias_novaentrada+ndias_DadoBCC+1,1))
+                    Newdias = ["%05d" % n for n in Newdias]
+                    df_SerieCompletaS = pd.concat([df_DadoBCCs,df_NovaEntradaS], axis =0)
+                    df_SerieCompletaS.index = Newdias
+                    df_TimeStep = pd.DataFrame()
+                    TimeStep = []
+                    for i in range(len(df_SerieCompletaS)):
+                        x1 = i*1440
+                        TimeStep.append(x1)
+                        
+                    df_TimeStep['Step'] = TimeStep
+                    df_SerieCompletaT = pd.concat([df_DadoBCCt,df_NovaEntradaT], axis =0)
+                    df_SerieCompletaT.index = Newdias
+                    df_SerieCompletaS.to_csv(caminhoSaida1+fronteira1+'_Salt_'+str(entradaTime)+'.csv')
+                    df_SerieCompletaT.to_csv(caminhoSaida2+fronteira1+'_Temp_'+str(entradaTime)+'.csv')
+                    print("*** Concluída a adição de nova série aos arquivos de séries acumuladas da fronteira "+fronteira1+"!***")
+                    break
+                else:
+                    print('Opção inválida. Entrar novamente, apenas com número 1 ou 2.')
+                    continue
+            except ValueError:
+                print('Opção inválida. Entrar novamente, apenas com número 1 ou 2.')
+                continue
 
-    distance_list.index = listatrecho
+        nCelulas = len(df_SerieCompletaS.loc[:,df_SerieCompletaS.columns.get_level_values(1).isin(['01'])].columns)
+        ncamadas = len(df_SerieCompletaS.loc[:,df_SerieCompletaS.columns.get_level_values(0).isin([fronteira1+str(1)])].columns)
+        Celulas = np.arange(1,nCelulas+1)
+        nfront = np.arange(1, (nCelulas)/2+1,1)
+        ID_front = [fronteira1 + '{}'.format(int(x)) for x in nfront]                        
+        odd_list = [x for x in Celulas if x % 2 != 0]
+        Ind_odd = [fronteira1 + '{}'.format(x) for x in odd_list]
+        even_list = [x for x in Celulas if x % 2 == 0]
+        Ind_even = [fronteira1 + '{}'.format(x) for x in even_list]
+        df_entrada_oddS = df_SerieCompletaS[Ind_odd]
+        df_entrada_evenS = df_SerieCompletaS[Ind_even]
+        df_entrada_oddT = df_SerieCompletaT[Ind_odd]
+        df_entrada_evenT = df_SerieCompletaT[Ind_even]
+        if fronteira1 == 'South':
+            ff = 1
+        elif fronteira1 == 'West':
+            ff = 73
+        elif fronteira1 == 'East':
+            ff = 84
+        for k in range(len(ID_front)):
+            my_file.write("table-name          'Boundary Section : "+str(k+1)+"'\n")
+            my_file.write("contents            '3d-profile'\n")
+            my_file.write("location            '"+fronteira1+str(k+1).zfill(2)+"'\n")
+            my_file.write("time-function       'non-equidistant'\n")
+            my_file.write("reference-time       "+str(referenceTime)+"\n")
+            my_file.write("time-unit           'minutes'\n")
+            my_file.write("interpolation       'linear'\n")
+            my_file.write("parameter           'time' unit '[min]'\n")
+            i=0
+            for i in range(1, ncamadas+1):
+                my_file.write("parameter           'Salinity             end A layer "+str(i)+"' unit '[ppt]'\n")
 
-    df_trecho1 = pd.DataFrame()
-    for k in Ind:
-        df_trecho = distance_list.loc[k][distance_list.loc[k].dist == distance_list.loc[k].dist.min()]
-        df_trecho1 = df_trecho1.append(df_trecho)
+            j=0
+            for j in range(1, ncamadas+1):
+                my_file.write("parameter           'Salinity             end B layer "+str(j)+"' unit '[ppt]'\n")
 
-    return df_trecho1
+            my_file.write("records-in-table     "+str(len(df_SerieCompletaS))+"\n")
+            for m in range(len(df_SerieCompletaS)):
+                s0 = df_TimeStep.iloc[m]
+                s1 = df_entrada_oddS[Ind_odd[k]].iloc[m]
+                s10 = s0.append(s1)
+                s2 = df_entrada_evenS[Ind_even[k]].iloc[m]
+                s11 = s10.append(s2)
+                s3 = ['%.7e' % x for x in s11]
+                numbers_str = "   ".join([str(number) for number in s3])
+                my_file.write("  " + numbers_str+"\n")
 
-#-----------------FIM função distEuclediana --------------------------------------------------------
+            my_file.write("table-name          'Boundary Section : "+str(k+1)+"'\n")
+            my_file.write("contents            '3d-profile'\n")
+            my_file.write("location            '"+fronteira1+str(k+1).zfill(2)+"'\n")
+            my_file.write("time-function       'non-equidistant'\n")
+            my_file.write("reference-time       "+str(referenceTime)+"\n")
+            my_file.write("time-unit           'minutes'\n")
+            my_file.write("interpolation       'linear'\n")
+            my_file.write("parameter           'time' unit '[min]'\n")
+            i=0
+            for i in range(1, ncamadas+1):
+                my_file.write("parameter           'Temperature          end A layer "+str(i)+"' unit '[C]'\n")
 
-#----------------INÍCIO função selectPoint ---------------------------------------------------------
+            j=0
+            for j in range(1, ncamadas+1):
+                my_file.write("parameter           'Temperature          end B layer "+str(j)+"' unit '[C]'\n")
 
-def selectPoint(caminhoDELFT, caminhoCamadaROMS, arqCamadaROMS, caminhoLatLongROMS, caminhoSaida1, fronteira1):
-    print('***Seleção dos pontos do ROMS para CC do DELFT***\n')        
-    caminho = caminhoDELFT
-    ent_header = 0
-    delft_input = openCSV(caminho, fronteira, fronteira1, ent_header)
-    roms_input1 = pd.read_csv(caminhoCamadaROMS+arqCamadaROMS, header = [0,1], index_col = 0)
-    LongLatRoms = np.loadtxt(caminhoLatLongROMS)
-    roms_input1['Long'] = LongLatRoms[:,1]
-    roms_input1['Lat'] = LongLatRoms[:,2]
-    pontosroms = roms_input1[['Long','Lat']]
-    pontosroms1 = np.array(pontosroms)
-    pontosdelft = delft_input[['Long','Lat','M','N']]
-    pontosdelft.reset_index(inplace=True)
-    pontosdelft1 = pontosdelft.iloc[np.arange(pontosdelft.shape[0]) % 2 != 0]
-    pontosdelft2 = pd.DataFrame(np.repeat(pontosdelft1.values, 2, axis=0), columns=pontosdelft1.columns)
-    pontosdelft3 = pontosdelft2[:len(pontosdelft2)-1]
-    pontosdelft3.loc[-1] = pontosdelft.iloc[0]
-    pontosdelft3.index = pontosdelft3.index + 1 
-    pontosdelft3.sort_index(inplace=True)
-    pontosdelft4 = pontosdelft3[['Long','Lat','M','N']]
-    pontosdelft5 = np.array(pontosdelft4[['Long','Lat']])
-    a = np.arange(1,len(pontosdelft5)+1,1)
-    Ind = [fronteira1 + '{}'.format(x) for x in a]
-    pontos1 = pontosroms1
-    pontos2 = pontosdelft5
-    df_trecho2 = distEuclediana (Ind, pontos1, pontos2, fronteira1)
-    select_roms1 = pd.DataFrame()
-    for m in Ind:
-        select_roms = roms_input1.loc[(roms_input1['Long'] == df_trecho2['Long1'].loc[m]) & (roms_input1['Lat'] == df_trecho2['Lat1'].loc[m])]
-        select_roms1 = select_roms1.append(select_roms)
+            my_file.write("records-in-table     "+str(len(df_SerieCompletaS))+"\n")
+            for n in range(len(df_SerieCompletaS)):
+                t0 = df_TimeStep.iloc[n]
+                t1 = df_entrada_oddT[Ind_odd[k]].iloc[n]
+                t2= df_entrada_evenT[Ind_even[k]].iloc[n]
+                t10 = t0.append(t1)
+                t11 = t10.append(t2)
+                t3 = ['%.7e' % x for x in t11]
+                numbers_str = "   ".join([str(number) for number in t3])
+                my_file.write("  " + numbers_str+"\n")
 
-    select_roms1.index = Ind
-    select_roms2 = select_roms1.drop(['Long', 'Lat'], axis=1)
-    select_roms2.to_csv(caminhoSaida1+fronteira1+'_'+arqCamadaROMS)
-    print('Arquivos Salvos com Sucesso!')
-    pontosdelft4.index = Ind
-    df_trecho2['M'] = pontosdelft4.M
-    df_trecho2['N'] = pontosdelft4.N
-    return df_trecho2
-#----------------FIM da função selectPoint ---------------------------------------------------------
 
-#----------------INÍCIO da função LongLatMNAlpha----------------------------------------------------
 
-def LongLatMNAlpha (caminhoalpha, resultado1, caminhoSaida2, fronteira1):
-
-    alpha_input = pd.read_csv(caminhoalpha, header = 0, index_col = 0)
-    pontosalpha = np.array(alpha_input[['LONGITUDE','LATITUDE']])
-    a = np.arange(1,len(resultado1)+1,1)
-    Ind = [fronteira1 + '{}'.format(x) for x in a]
-    pontos1 = pontosalpha
-    pontos2 = np.array(resultado1[['Long1','Lat2']])
-    df_trecho3 = distEuclediana (Ind, pontos1, pontos2, fronteira1)
-    select_alpha1 = pd.DataFrame()
-    for n in Ind:
-        select_alpha = alpha_input.loc[(alpha_input['LONGITUDE'] == df_trecho3['Long1'].loc[n]) & (alpha_input['LATITUDE'] == df_trecho3['Lat1'].loc[n])]
-        select_alpha1 = select_alpha1.append(select_alpha)
-
-    select_alpha1.index = Ind
-    df_trecho3['Alpha'] = select_alpha1.ALFAS
-    df_trecho3.to_csv(caminhoSaida2+fronteira1+'LongLatMNAlpha.csv')
-    return df_trecho3
-#----------------FIM da função LongLatMNAlpha ---------------------------------------------------------
+    my_file.close()
+#----------------------------- FIM da funcao criarArquivoBCC ---------------------------------------
 
 #----------------INÍCIO DO CÓDIGO PRINCIPAL---------------------------------------------------------
 print('+ ================================================================================== +')
 print('|                                                                                    |')
-print('| Título: Seleção dos pontos do ROMS para Condições de Contorno do DELFT3D-4         |')
+print('| Título: Montagem do arquivo .BCC para Condições de Contorno do DELFT3D-4           |')
 print('|                                                                                    |')
 print('| Autor: Oceanógrafo Marcelo Di Lello Jordão                                         |')
 print('| Data: 03/08/2022                                                                   |')
@@ -188,39 +237,19 @@ print('| Contato: dilellocn@gmail.com                                           
 print('|                                                                                    |')
 print('+ ================================================================================== +\n\n')
 
-roms_input = pd.DataFrame()
-delft_input = pd.DataFrame()
-resultado1 = pd.DataFrame()
-resultado2 = pd.DataFrame()
-fronteira = fronteiraDelft()
-caminhoDELFT = str(input('\n Digitar o caminho que leva aos arquivos .CSV de Lat e Log do Delft:\n>> '))
-caminhoLatLongROMS = input('\n Digitar o caminho e nome do arquivo com a extensão .TXT referente a lat e long dos pontos do ROMS:\n>> ')
 while True:
     try:
-        opcao = int(input('Escolha a poção desejada [1 ou 2]:\n1 - Executar código de seleção de pontos do ROMS\n2 - Sair\n>>'))
+        opcao = int(input('Escolha a poção desejada [1 ou 2]:\n1 - Executar código montagem do arquivo BCC\n2 - Sair\n>>'))
         if opcao == 1:
-            caminhoCamadaROMS = str(input('\n Digitar o caminho que leva ao arquivos do ROMS interpolados na camadas do Delft:\n>> '))
-            arqCamadaROMS = str(input('Digitar nome arquivo do ROMS interpolados na camadas do Delft com a extensão .CSV:\n>> '))
-            caminhoSaida1 = input('\n Entrar com o caminho do diretório de saída de pontos selecionados do ROMS:\n>> ')
-            for i in range(len(fronteira)):
-                fronteira1 = fronteira[i]
-                resultado1 = selectPoint(caminhoDELFT, caminhoCamadaROMS, arqCamadaROMS, caminhoLatLongROMS, caminhoSaida1, fronteira1)
-                print ('Arquivos da fronteria'+fronteira1+'gerados com sucesso!')
-                while True:
-                    try:
-                        opcao1 = int(input('Escolha a poção desejada [1 ou 2]:\n1 - Executar criação de arquivo LongLatMNAlpha\n2 - Continua\n>>'))
-                        if opcao1 == 1:
-                            caminhoalpha = input('\n Digitar o caminho e nome do arquivo com a extensão .CSV referente aos Alphas dos pontos do Delft:\n>> ')
-                            caminhoSaida2 = input('\n Entrar com o caminho do diretório de saída:\n>> ')
-                            resultado2 = LongLatMNAlpha (caminhoalpha, resultado1, caminhoSaida2, fronteira1)
-                            print ('Arquivos LongLatMNAlpha gerados com sucesso!')
-                            break
-                        else:
-                            break
-                    except ValueError:
-                        print('Opção inválida. Entrar novamente, apenas com número 1 ou 2.')
-                        continue
-
+            referenceTime = int(input('\n Entrar com a data [AAAAMMDD] de referência inicial do modelo (Ex.:20110101):\n>> '))
+            entradaTime = int(input('\n Entrar com a data [AAAAMM] do arquivo que será incorporado na série acumulada  (Ex.:201101):\n>> '))
+            caminhoS = str(input('\n Digitar o caminho que leva aos arquivos .CSV de SALINIDADE que serão incorporada a série acumulada:\n>> '))
+            caminhoT = str(input('\n Digitar o caminho que leva aos arquivos .CSV de TEMPERATURA que serão incorporada a série acumulada:\n>> '))
+            caminhoSaida1 = str(input('\n Digitar o caminho de saída para o arquivo .CSV com a série histórica atualizada da SALINIDADE:\n>> '))
+            caminhoSaida2 = str(input('\n Digitar o caminho de saída para o arquivo .CSV com a série histórica atualizada da TEMPERATURA:\n>> '))
+            caminhoSaida3 = str(input('\n Digitar o caminho de saída para o arquivo .BCC:\n>> '))
+            fronteira = fronteiraDelft()
+            criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, caminhoSaida1, caminhoSaida2, caminhoSaida3)
             continue
         elif opcao == 2:
             break
@@ -232,4 +261,4 @@ while True:
         continue
 print('Programa finalizado!')
 
-#----------------FIM DO CÓDIGO PRINCIPAL------------------------------------------------------------    
+#----------------FIM DO CÓDIGO PRINCIPAL------------------------------------------------------------ 
