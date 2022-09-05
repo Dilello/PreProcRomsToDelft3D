@@ -1,4 +1,4 @@
-#-------------------Importando Bibliotecas ---------------------------------------------------------
+# -------------------Importando Bibliotecas ---------------------------------------------------------
 import numpy as np
 import pandas as pd
 import glob
@@ -76,7 +76,7 @@ def estruturandoNovaEntrada(caminho,fronteira,fronteira1):
     A1 = ["%02d" % n for n in A1]
 
     #IMPORTANTE: Como no ROMS a 1ª camada é o fundo e no Delft é o contrário, aqui acontece a inversão das camadas:
-    A1 = A1[::-1]
+    #A1 = A1[::-1]
     
     B1 = list(np.arange(1,len(a)+1))*ncamadas
     B1 = ["%05d" % n for n in B1]
@@ -102,6 +102,13 @@ def criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, c
                 if perguntaInicial == 1:
                     df_SerieCompletaS = df_NovaEntradaS
                     df_SerieCompletaT = df_NovaEntradaT
+                    df_TimeStep = pd.DataFrame()
+                    TimeStep = []
+                    for i in range(len(df_SerieCompletaS)):
+                        x1 = i*1440
+                        TimeStep.append(x1)
+
+                    df_TimeStep['Step'] = TimeStep
                     df_SerieCompletaS.to_csv(caminhoSaida1+fronteira1+'_Salt_'+str(entradaTime)+'.csv')
                     df_SerieCompletaT.to_csv(caminhoSaida2+fronteira1+'_Temp_'+str(entradaTime)+'.csv')
                     print("*** Série histórica da fronteira "+ fronteira1+" nova criada com sucesso!***")
@@ -120,6 +127,13 @@ def criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, c
                     Newdias = ["%05d" % n for n in Newdias]
                     df_SerieCompletaS = pd.concat([df_DadoBCCs,df_NovaEntradaS], axis =0)
                     df_SerieCompletaS.index = Newdias
+                    df_TimeStep = pd.DataFrame()
+                    TimeStep = []
+                    for i in range(len(df_SerieCompletaS)):
+                        x1 = i*1440
+                        TimeStep.append(x1)
+                        
+                    df_TimeStep['Step'] = TimeStep
                     df_SerieCompletaT = pd.concat([df_DadoBCCt,df_NovaEntradaT], axis =0)
                     df_SerieCompletaT.index = Newdias
                     df_SerieCompletaS.to_csv(caminhoSaida1+fronteira1+'_Salt_'+str(entradaTime)+'.csv')
@@ -146,6 +160,12 @@ def criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, c
         df_entrada_evenS = df_SerieCompletaS[Ind_even]
         df_entrada_oddT = df_SerieCompletaT[Ind_odd]
         df_entrada_evenT = df_SerieCompletaT[Ind_even]
+        if fronteira1 == 'South':
+            ff = 1
+        elif fronteira1 == 'West':
+            ff = 73
+        elif fronteira1 == 'East':
+            ff = 84
         for k in range(len(ID_front)):
             my_file.write("table-name          'Boundary Section : "+str(k+1)+"'\n")
             my_file.write("contents            '3d-profile'\n")
@@ -165,14 +185,15 @@ def criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, c
 
             my_file.write("records-in-table     "+str(len(df_SerieCompletaS))+"\n")
             for m in range(len(df_SerieCompletaS)):
+                s0 = df_TimeStep.iloc[m]
                 s1 = df_entrada_oddS[Ind_odd[k]].iloc[m]
+                s10 = s0.append(s1)
                 s2 = df_entrada_evenS[Ind_even[k]].iloc[m]
-                s11 = s1.append(s2)
+                s11 = s10.append(s2)
                 s3 = ['%.7e' % x for x in s11]
                 numbers_str = "   ".join([str(number) for number in s3])
                 my_file.write("  " + numbers_str+"\n")
 
-            my_file.write("  " + numbers_str+"\n")
             my_file.write("table-name          'Boundary Section : "+str(k+1)+"'\n")
             my_file.write("contents            '3d-profile'\n")
             my_file.write("location            '"+fronteira1+str(k+1).zfill(2)+"'\n")
@@ -191,9 +212,11 @@ def criarArquivoBCC(fronteira, caminhoS, caminhoT, referenceTime, entradaTime, c
 
             my_file.write("records-in-table     "+str(len(df_SerieCompletaS))+"\n")
             for n in range(len(df_SerieCompletaS)):
+                t0 = df_TimeStep.iloc[n]
                 t1 = df_entrada_oddT[Ind_odd[k]].iloc[n]
                 t2= df_entrada_evenT[Ind_even[k]].iloc[n]
-                t11 = t1.append(t2)
+                t10 = t0.append(t1)
+                t11 = t10.append(t2)
                 t3 = ['%.7e' % x for x in t11]
                 numbers_str = "   ".join([str(number) for number in t3])
                 my_file.write("  " + numbers_str+"\n")
@@ -238,8 +261,7 @@ while True:
         continue
 print('Programa finalizado!')
 
-#----------------FIM DO CÓDIGO PRINCIPAL------------------------------------------------------------    
-
+#----------------FIM DO CÓDIGO PRINCIPAL------------------------------------------------------------
 
 
 
